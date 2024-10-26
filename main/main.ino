@@ -13,6 +13,8 @@ unsigned long lastPwmUpdateTime = 0;
 const int pwmUpdateInterval = 20; // Interval in milliseconds for PWM updates
 const int pwmStepSize = 5; // Increase the step size to 5
 
+bool firstSerialValueReceived = false;
+
 void setup() {
     lcd.begin(16, 2);
     lcd.clear();
@@ -37,6 +39,11 @@ void loop() {
         startTime = millis();
         String data = Serial.readStringUntil('\n'); // Read data until newline
         Serial.println(data); // Print the raw data to the Serial Monitor for debugging
+        if (!firstSerialValueReceived) {
+            firstSerialValueReceived = true;
+            analogWrite(pwmPin, 255); // Set PWM to 255 for 5 seconds
+            delay(5000); // Wait for 5 seconds
+        }
 
         int commaIndex = data.indexOf(',');
         if (commaIndex > 0) {
@@ -70,6 +77,8 @@ void loop() {
                 currentRange = 3;
                 targetPwmValue = 255; // Above 55 degrees: 255 PWM
                 fanSpeedPercentage = 100; // 100%
+            } else {
+                fanSpeedPercentage = -1; // Default value to indicate not applicable
             }
 
             if (currentRange != lastKnownRange) {
@@ -85,13 +94,14 @@ void loop() {
                 // Update the fan speed percentage
             }
             lcd.setCursor(0, 1);
-            lcd.print("GPU: " + gpuTempStr + "\337C " + fanSpeedPercentage + "% ");
+            lcd.print("GPU: " + gpuTempStr + "\337C " + fanSpeedPercentage + "%   ");
         }
     } else if (serialConnected && millis() - startTime > 5000) {
         lcd.setCursor(0, 0);
         lcd.print("No Data  ");
         lcd.setCursor(0, 1);
         lcd.print("           ");
+        analogWrite(pwmPin, 0); // Set PWM to 0 if no serial data is available
     } else if (!serialConnected) {
         lcd.setCursor(0, 0);
         lcd.print("No Signal  ");
